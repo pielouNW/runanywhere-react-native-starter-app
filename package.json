@@ -53,5 +53,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "resolutions": {
+    "@runanywhere/core@0.20.19": "patch:@runanywhere/core@npm%3A0.20.19#./.yarn/patches/@runanywhere-core-npm-0.20.19-f4d947d688.patch"
   }
 }

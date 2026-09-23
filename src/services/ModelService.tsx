@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Platform } from 'react-native';
 
 import { modelCredit } from './modelOrg';
 import { RunAnywhere } from '@runanywhere/core';
@@ -355,7 +354,9 @@ export const ModelServiceProvider: React.FC<ModelServiceProviderProps> = ({ chil
  * Models + frameworks match the sample app's curated catalog:
  * runanywhere-sdks/examples/react-native/RunAnywhereAI/src/services/ModelCatalogBootstrap.ts
  */
-export const registerDefaultModels = async () => {
+export const registerDefaultModels = async ({
+  mlxAvailable = false,
+}: { mlxAvailable?: boolean } = {}) => {
   // LLM Model - Qwen3.5 0.8B, the smallest current-generation chat model.
   await RunAnywhere.models.register({
     id: MODEL_IDS.llm,
@@ -416,12 +417,12 @@ export const registerDefaultModels = async () => {
 
   // VLM Model - LiquidAI LFM2.5-VL 3B MLX 4-bit (~2.4GB repo, Apple only).
   // MLX is an iOS-only, physical-device-only backend (see App.tsx), so the entry
-  // is registered only where it can actually load rather than sitting unloadable
-  // in the Android catalog.
+  // is registered only where the backend registered: the model registry rejects
+  // an MLX model when no MLX backend is present (Android, iOS Simulator).
   // A PLAIN repo ref, not a `/4bit` subfolder ref like `hf.co/LiquidAI/...MLX/4bit`
   // — LiquidAI publishes one precision per repo here, so the 4-bit safetensors sit
   // at the repo ROOT alongside config.json.
-  if (Platform.OS === 'ios') {
+  if (mlxAvailable) {
     await RunAnywhere.models.register({
       id: 'mlx-lfm2.5-vl-3b-4bit',
       name: 'MLX LFM2.5-VL 3B 4bit',

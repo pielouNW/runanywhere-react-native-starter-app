@@ -40,7 +40,55 @@ target 'RunAnywhereStarter' do
       config[:reactNativePath],
       :mac_catalyst_enabled => false
     )
-    
+
+    # fmt 11.0.2 (pinned by React Native) fails to compile under newer Apple clang
+    # (Xcode 26.4+) with "call to consteval function ... is not a constant expression".
+    # base.h defines FMT_USE_CONSTEVAL unconditionally, so patch the header itself.
+    fmt_base = File.join(installer.sandbox.root, 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      contents = File.read(fmt_base)
+      patched = contents.gsub('#  define FMT_USE_CONSTEVAL 1', '#  define FMT_USE_CONSTEVAL 0')
+      if patched != contents
+        File.chmod(0644, fmt_base)
+        File.write(fmt_base, patched)
+      end
+    end
+
+    # The RunAnywhere podspecs request Swift 6 language mode, but their sources don't pass
+    # Swift 6 strict concurrency checking under Xcode 27. Build them in Swift 5 mode.
+    installer.pods_project.targets.each do |target|
+      next unless target.name.start_with?('RunAnywhere')
+      target.build_configurations.each do |build_config|
+        build_config.build_settings['SWIFT_VERSION'] = '5.0'
+      end
+    end
+
+    # RunAnywhereCore's Swift code calls the ObjC class AudioCaptureLevel, but Nitrogen's
+    # autolinking restricts public headers to its generated files, so the header never
+    # reaches the Swift module. Expose it through the pod's umbrella header.
+    rac_umbrella = File.join(installer.sandbox.root, 'Target Support Files', 'RunAnywhereCore', 'RunAnywhereCore-umbrella.h')
+    if File.exist?(rac_umbrella)
+      contents = File.read(rac_umbrella)
+      unless contents.include?('AudioCaptureLevel.h')
+        contents = contents.sub(
+          'FOUNDATION_EXPORT double RunAnywhereCoreVersionNumber;',
+          "#ifdef __OBJC__\n#import \"AudioCaptureLevel.h\"\n#endif\n\nFOUNDATION_EXPORT double RunAnywhereCoreVersionNumber;"
+        )
+        File.write(rac_umbrella, contents)
+      end
+    end
+
+    # RunAnywhereCore force-loads librac_commons.a into the app, but CocoaPods declares the
+    # xcframework copy phase's output as RACommons.framework. Xcode 27 tracks the -force_load
+    # path as a build input and fails a clean build ("Build input file cannot be found")
+    # unless a phase declares it, so declare the static library it actually produces.
+    rac_outputs = File.join(installer.sandbox.root, 'Target Support Files', 'RunAnywhereCore', 'RunAnywhereCore-xcframeworks-output-files.xcfilelist')
+    rac_lib = '${PODS_XCFRAMEWORKS_BUILD_DIR}/RunAnywhereCore/librac_commons.a'
+    if File.exist?(rac_outputs)
+      contents = File.read(rac_outputs)
+      File.write(rac_outputs, contents.chomp + "\n" + rac_lib + "\n") unless contents.include?(rac_lib)
+    end
+
     # Remove RCT_NEW_ARCH_ENABLED from preprocessor definitions to disable New Architecture
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |build_config|

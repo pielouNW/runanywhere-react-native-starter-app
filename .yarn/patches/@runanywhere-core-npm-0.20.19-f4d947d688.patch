@@ -1,0 +1,13 @@
+diff --git a/ios/HybridAudioCapture.swift b/ios/HybridAudioCapture.swift
+index 03baa493965a1f6be75ddcb385df754c86d60b72..6d24de1a50d9a0a558edb5aeb8bead56b831dae7 100644
+--- a/ios/HybridAudioCapture.swift
++++ b/ios/HybridAudioCapture.swift
+@@ -321,7 +321,7 @@ class HybridAudioCapture: HybridAudioCaptureSpec {
+ 
+         // RMS→dB→[0,1] lives in commons (`rac_audio_compute_level_normalized`)
+         // via the AudioCaptureLevel ObjC++ bridge — no local DSP here.
+-        let normalizedLevel = AudioCaptureLevel.normalizedFromFloat32Samples(
++        let normalizedLevel = AudioCaptureLevel.normalized(fromFloat32Samples: 
+             channelData.pointee,
+             count: frames
+         )

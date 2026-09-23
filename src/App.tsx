@@ -44,9 +44,10 @@ const App: React.FC = () => {
         // package is still installed on all platforms, but register() itself
         // resolves to false on Android/Simulator, so this is additive and safe
         // to call unconditionally.
+        let mlxRegistered = false;
         try {
           const { MLX } = await import('@runanywhere/mlx');
-          const mlxRegistered = await MLX.register();
+          mlxRegistered = await MLX.register();
           if (!mlxRegistered) {
             console.log('MLX backend not available on this device');
           }
@@ -68,7 +69,7 @@ const App: React.FC = () => {
         }
 
         // Register default models
-        await registerDefaultModels();
+        await registerDefaultModels({ mlxAvailable: mlxRegistered });
 
         console.log('RunAnywhere SDK initialized successfully');
       } catch (error) {
