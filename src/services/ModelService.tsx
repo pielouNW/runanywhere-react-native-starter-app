@@ -13,7 +13,7 @@ import {
 // See: runanywhere-sdks/examples/react-native/RunAnywhereAI/src/services/ModelCatalogBootstrap.ts
 export const MODEL_IDS = {
   llm: 'qwen3.5-0.8b-q4_k_m', // Qwen3.5 - smallest current-generation chat model
-  vlm: 'smolvlm-500m-instruct-q8_0', // SmolVLM - ultra-light vision model
+  vlm: 'qwen2-vl-2b-instruct-q4_k_m', // LFM2 - ultra-light vision model
   stt: 'sherpa-onnx-whisper-tiny.en',
   tts: 'vits-piper-en_US-lessac-medium',
 } as const;
@@ -21,7 +21,7 @@ export const MODEL_IDS = {
 /** Display names, kept beside the ids they belong to. */
 export const MODEL_NAMES = {
   llm: 'Qwen3.5 0.8B Q4_K_M',
-  vlm: 'SmolVLM 500M Instruct',
+  vlm: 'qwen2-vl-2b-instruct-q4_k_m',
   stt: 'Sherpa Whisper Tiny (ONNX)',
   tts: 'Piper TTS (US English - Medium)',
 } as const;

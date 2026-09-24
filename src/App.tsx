@@ -44,16 +44,21 @@ const App: React.FC = () => {
         // package is still installed on all platforms, but register() itself
         // resolves to false on Android/Simulator, so this is additive and safe
         // to call unconditionally.
-        let mlxRegistered = false;
-        try {
-          const { MLX } = await import('@runanywhere/mlx');
-          mlxRegistered = await MLX.register();
-          if (!mlxRegistered) {
-            console.log('MLX backend not available on this device');
-          }
-        } catch (mlxError) {
-          console.log('MLX backend not available:', mlxError);
-        }
+
+        // TODO: MLX is disabled at the moment
+        // let mlxRegistered = false;
+        // try {
+        //   const { MLX } = await import('@runanywhere/mlx');
+        //   mlxRegistered = await MLX.register();
+        //   if (!mlxRegistered) {
+        //     console.log('MLX backend not available on this device');
+        //   }
+        // } catch (mlxError) {
+        //   console.log('MLX backend not available:', mlxError);
+        // }
+
+        // Register default models (MLX-only entries are skipped while MLX is off)
+        await registerDefaultModels({ mlxAvailable: false });
 
         // QHexRT (Qualcomm Hexagon NPU) is an Android-only backend. register()
         // resolves to false on unsupported devices, so this is additive and
@@ -67,9 +72,6 @@ const App: React.FC = () => {
         } catch (qhexrtError) {
           console.log('QHexRT backend not available:', qhexrtError);
         }
-
-        // Register default models
-        await registerDefaultModels({ mlxAvailable: mlxRegistered });
 
         console.log('RunAnywhere SDK initialized successfully');
       } catch (error) {

@@ -124,7 +124,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Text style={styles.infoIcon}>👁</Text>
               <Text style={styles.infoLabel}>VLM</Text>
               <View style={{ flex: 1 }} />
-              <Text style={styles.infoValue}>SmolVLM 500M</Text>
+              <Text style={styles.infoValue}>VLLM</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoIcon}>🎤</Text>

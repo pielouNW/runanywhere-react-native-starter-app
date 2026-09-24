@@ -8,7 +8,7 @@
  */
 
 import { RunAnywhere, ImageInputs } from '@runanywhere/core';
-import type { GenerationEvent } from '@runanywhere/core';
+import type { GenerationEvent, GenerationResult } from '@runanywhere/core';
 import { ModelCategory } from '@runanywhere/proto-ts/model_types';
 
 export class VLMService {
@@ -32,6 +32,8 @@ export class VLMService {
 
   /**
    * Process an image and stream description tokens back through `onToken`.
+   * Resolves with the final result (metrics included), or `null` when the
+   * stream ended without one (e.g. cancelled).
    *
    * `imagePath` must be a plain on-disk file path (no `file://` prefix); the
    * native VLM backend reads it directly.
@@ -41,7 +43,7 @@ export class VLMService {
     prompt: string,
     maxTokens: number,
     onToken: (token: string) => void
-  ): Promise<void> {
+  ): Promise<GenerationResult | null> {
     if (!(await this.isModelLoaded())) {
       throw new Error('Model not loaded. Please load a vision model first.');
     }
@@ -55,6 +57,7 @@ export class VLMService {
       [Symbol.asyncIterator]();
     this.stream = iterator;
 
+    let result: GenerationResult | null = null;
     try {
       for (;;) {
         const step = await iterator.next();
@@ -65,12 +68,16 @@ export class VLMService {
         } else if (event.type === 'failed') {
           throw event.error;
         } else if (event.type === 'completed') {
+          result = event.result;
+          break;
+        } else if (event.type === 'cancelled') {
           break;
         }
       }
     } finally {
       this.stream = null;
     }
+    return result;
   }
 
   /** Cancel any in-flight VLM generation. */
