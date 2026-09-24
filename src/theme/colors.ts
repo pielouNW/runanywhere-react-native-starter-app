@@ -18,7 +18,7 @@ export const AppColors = {
 
   // Text colors
   textPrimary: '#F1F5F9',
-  textSecondary: '#94A3B8',
+  textSecondary: '#c0cee2',
   textMuted: '#64748B',
 
   // Status colors

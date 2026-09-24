@@ -43,6 +43,8 @@ const getIconEmoji = (title: string): string => {
   const iconMap: Record<string, string> = {
     Chat: '💬',
     Vision: '👁',
+    Structured: '📋',
+    'Nested Tools': '🧩',
     Tools: '🛠',
     Speech: '🎤',
     Voice: '🔊',

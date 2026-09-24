@@ -12,6 +12,8 @@ import {
   HomeScreen,
   ChatScreen,
   VisionScreen,
+  StructuredOutputScreen,
+  NestedToolSchemaScreen,
   ToolCallingScreen,
   SpeechToTextScreen,
   TextToSpeechScreen,
@@ -120,6 +122,16 @@ const App: React.FC = () => {
               name="Vision"
               component={VisionScreen}
               options={{ title: 'Vision' }}
+            />
+            <Stack.Screen
+              name="StructuredOutput"
+              component={StructuredOutputScreen}
+              options={{ title: 'Structured Output' }}
+            />
+            <Stack.Screen
+              name="NestedToolSchema"
+              component={NestedToolSchemaScreen}
+              options={{ title: 'Nested Tool Schema' }}
             />
             <Stack.Screen
               name="ToolCalling"
