@@ -49,6 +49,7 @@ const getIconEmoji = (title: string): string => {
     Speech: '🎤',
     Voice: '🔊',
     Pipeline: '✨',
+    MultiTurnTTFT: "🏎️"
   };
   return iconMap[title] || '⚡';
 };

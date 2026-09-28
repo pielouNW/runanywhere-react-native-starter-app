@@ -18,6 +18,7 @@ import {
   SpeechToTextScreen,
   TextToSpeechScreen,
   VoicePipelineScreen,
+  MultiTurnTTFTScreen,
 } from './screens';
 import { RootStackParamList } from './navigation/types';
 
@@ -122,6 +123,11 @@ const App: React.FC = () => {
               name="Vision"
               component={VisionScreen}
               options={{ title: 'Vision' }}
+            />
+            <Stack.Screen
+              name="MultiTurnTTFT"
+              component={MultiTurnTTFTScreen}
+              options={{ title: 'MultiTurn TTFT' }}
             />
             <Stack.Screen
               name="StructuredOutput"
