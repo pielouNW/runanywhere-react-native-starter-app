@@ -2,7 +2,10 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 import { modelCredit } from './modelOrg';
 import { RunAnywhere } from '@runanywhere/core';
-import { Model as NWModel, downloadModel as nwDownloadModel } from 'react-native-nobodywho';
+// NW disabled: NobodyWho's native library is unlinked (react-native.config.js)
+// while RunAnywhere is tested alone. The type-only import is erased at build time.
+// import { Model as NWModel, downloadModel as nwDownloadModel } from 'react-native-nobodywho';
+import type { Model as NWModel } from 'react-native-nobodywho';
 import {
   ModelCategory,
   InferenceFramework,
@@ -341,33 +344,34 @@ export const ModelServiceProvider: React.FC<ModelServiceProviderProps> = ({ chil
 
   // Download and load NobodyWho's copy of an LLM, releasing the other one
   // first so only one copy sits in memory.
-  const downloadAndLoadNW = useCallback(async (modelId: LLMId) => {
-    if (isNWDownloading || isNWLoading || nw?.id === modelId) {
-      return;
-    }
-
-    setIsNWLoading(true);
-    try {
-      nw?.model.destroy();
-      setNW(null);
-
-      const localPath = await nwDownloadModel({
-        modelPath: LLM_URLS[modelId],
-        onDownloadProgress: (downloaded, total) => {
-          setIsNWDownloading(true);
-          setNWDownloadProgress(total > 0 ? (downloaded / total) * 100 : 0);
-        },
-      });
-      setIsNWDownloading(false);
-
-      setNW({ id: modelId, model: await NWModel.load({ modelPath: localPath }) });
-    } catch (error) {
-      console.error('NobodyWho download/load error:', error);
-      setIsNWDownloading(false);
-    } finally {
-      setIsNWLoading(false);
-    }
-  }, [isNWDownloading, isNWLoading, nw]);
+  // NW disabled: a no-op while NobodyWho is unlinked.
+  const downloadAndLoadNW = useCallback(async (_modelId: LLMId) => {
+    // if (isNWDownloading || isNWLoading || nw?.id === modelId) {
+    //   return;
+    // }
+    //
+    // setIsNWLoading(true);
+    // try {
+    //   nw?.model.destroy();
+    //   setNW(null);
+    //
+    //   const localPath = await nwDownloadModel({
+    //     modelPath: LLM_URLS[modelId],
+    //     onDownloadProgress: (downloaded, total) => {
+    //       setIsNWDownloading(true);
+    //       setNWDownloadProgress(total > 0 ? (downloaded / total) * 100 : 0);
+    //     },
+    //   });
+    //   setIsNWDownloading(false);
+    //
+    //   setNW({ id: modelId, model: await NWModel.load({ modelPath: localPath }) });
+    // } catch (error) {
+    //   console.error('NobodyWho download/load error:', error);
+    //   setIsNWDownloading(false);
+    // } finally {
+    //   setIsNWLoading(false);
+    // }
+  }, []);
 
   // Download and load all models
   const downloadAndLoadAllModels = useCallback(async () => {

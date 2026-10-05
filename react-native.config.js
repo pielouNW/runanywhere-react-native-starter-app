@@ -30,5 +30,13 @@ module.exports = {
         ios: null,
       },
     },
+    // NW disabled: NobodyWho links its own llama.cpp, which the linker hands to
+    // RunAnywhere's backend too. Unlinked while RunAnywhere is tested alone.
+    'react-native-nobodywho': {
+      platforms: {
+        ios: null,
+        android: null,
+      },
+    },
   },
 };

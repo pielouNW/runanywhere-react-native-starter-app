@@ -21,8 +21,9 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { RunAnywhere } from '@runanywhere/core';
 import type { ChatMessage } from '@runanywhere/core';
-import { Chat as NWChat, SamplerPresets } from 'react-native-nobodywho';
-import type { Message as NWMessage } from 'react-native-nobodywho';
+// NW disabled: NobodyWho is unlinked while RunAnywhere is tested alone.
+// import { Chat as NWChat, SamplerPresets } from 'react-native-nobodywho';
+import type { Chat as NWChat, Message as NWMessage } from 'react-native-nobodywho';
 import { AppColors } from '../theme';
 import { useModelService, MODEL_CREDITS, MODEL_IDS } from '../services/ModelService';
 import { ModelLoaderWidget, ActionButton, FindingHeader, MONO } from '../components';
@@ -55,7 +56,8 @@ interface Replies {
 
 interface EngineReplies {
   runAnywhere: Replies;
-  nobodyWho: Replies;
+  // NW disabled: absent while NobodyWho is unlinked.
+  nobodyWho?: Replies;
 }
 
 const askRA = async (messages: ChatMessage[]): Promise<string> => {
@@ -136,7 +138,8 @@ export const HistoryRolesScreen: React.FC = () => {
 
   const run = async () => {
     setIsRunning(true);
-    let nwChat: NWChat | null = null;
+    // NW disabled
+    // let nwChat: NWChat | null = null;
     try {
       console.log(CHAT_HISTORY.slice(0, 2));
       const chatHistoryReply = await askRA(CHAT_HISTORY);
@@ -144,28 +147,32 @@ export const HistoryRolesScreen: React.FC = () => {
       const controlReply = await askRA(CONTROL_HISTORY);
       console.log(`controlReply ${controlReply}`);
 
-      // Greedy with thinking off, like `askRA`.
-      nwChat = new NWChat({
-        model: modelService.nwModel!,
-        sampler: SamplerPresets.greedy(),
-        templateVariables: { enable_thinking: false },
-      });
-      const nwChatHistoryReply = await askNW(nwChat, CHAT_HISTORY);
-      const nwControlReply = await askNW(nwChat, CONTROL_HISTORY);
+      // NW disabled
+      // // Greedy with thinking off, like `askRA`.
+      // nwChat = new NWChat({
+      //   model: modelService.nwModel!,
+      //   sampler: SamplerPresets.greedy(),
+      //   templateVariables: { enable_thinking: false },
+      // });
+      // const nwChatHistoryReply = await askNW(nwChat, CHAT_HISTORY);
+      // const nwControlReply = await askNW(nwChat, CONTROL_HISTORY);
 
       setResult({
         runAnywhere: { chatHistoryReply, controlReply },
-        nobodyWho: { chatHistoryReply: nwChatHistoryReply, controlReply: nwControlReply },
+        // NW disabled
+        // nobodyWho: { chatHistoryReply: nwChatHistoryReply, controlReply: nwControlReply },
       });
     } catch (e) {
       setResult(String(e));
     } finally {
-      nwChat?.destroy();
+      // NW disabled
+      // nwChat?.destroy();
       setIsRunning(false);
     }
   };
 
-  if (!modelService.isLLMLoaded || modelService.nwModelId !== MODEL_IDS.llm) {
+  // NW disabled: only RunAnywhere has to hold the model.
+  if (!modelService.isLLMLoaded /* || modelService.nwModelId !== MODEL_IDS.llm */) {
     const raBusy = modelService.isLLMDownloading || modelService.isLLMLoading;
 
     return (
@@ -183,7 +190,8 @@ export const HistoryRolesScreen: React.FC = () => {
           if (!modelService.isLLMLoaded) {
             await modelService.downloadAndLoadLLM();
           }
-          await modelService.downloadAndLoadNW(MODEL_IDS.llm);
+          // NW disabled
+          // await modelService.downloadAndLoadNW(MODEL_IDS.llm);
         }}
       />
     );
@@ -221,7 +229,9 @@ export const HistoryRolesScreen: React.FC = () => {
       ) : result ? (
         <View style={styles.resultContainer}>
           <EngineResult engine="RunAnywhere" replies={result.runAnywhere} />
+          {/* NW disabled
           <EngineResult engine="NobodyWho" replies={result.nobodyWho} />
+          */}
         </View>
       ) : null}
     </ScrollView>

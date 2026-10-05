@@ -15,11 +15,11 @@
   "dependencies": {
     "@react-navigation/native": "^7.1.24",
     "@react-navigation/stack": "^7.6.16",
-    "@runanywhere/core": "0.20.19",
-    "@runanywhere/llamacpp": "0.20.19",
-    "@runanywhere/mlx": "0.20.19",
-    "@runanywhere/onnx": "0.20.19",
-    "@runanywhere/proto-ts": "0.20.19",
+    "@runanywhere/core": "0.20.27",
+    "@runanywhere/llamacpp": "0.20.27",
+    "@runanywhere/mlx": "0.20.27",
+    "@runanywhere/onnx": "0.20.27",
+    "@runanywhere/proto-ts": "0.20.27",
     "@runanywhere/qhexrt": "0.20.19",
     "react": "19.2.0",
     "react-native": "0.83.1",
@@ -57,6 +57,6 @@
   },
   "resolutions": {
     "react-native-nobodywho@4.0.0": "patch:react-native-nobodywho@npm%3A4.0.0#./.yarn/patches/react-native-nobodywho-npm-4.0.0-2d4908f517.patch",
-    "@runanywhere/core@0.20.19": "patch:@runanywhere/core@npm%3A0.20.19#./.yarn/patches/@runanywhere-core-npm-0.20.19-f4d947d688.patch"
+    "@runanywhere/core@0.20.27": "patch:@runanywhere/core@npm%3A0.20.27#./.yarn/patches/@runanywhere-core-npm-0.20.27-a8e57b7c88.patch"
   }
 }

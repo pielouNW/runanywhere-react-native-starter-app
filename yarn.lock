@@ -2345,12 +2345,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@runanywhere/core@npm:0.20.19":
-  version: 0.20.19
-  resolution: "@runanywhere/core@npm:0.20.19"
+"@runanywhere/core@npm:0.20.27":
+  version: 0.20.27
+  resolution: "@runanywhere/core@npm:0.20.27"
   dependencies:
     "@bufbuild/protobuf": ^2.12.1
-    "@runanywhere/proto-ts": 0.20.19
+    "@runanywhere/proto-ts": 0.20.27
     long: ^5.3.2
     protobufjs: ^7.5.8
   peerDependencies:
@@ -2367,16 +2367,16 @@ __metadata:
       optional: true
     react-native-fs:
       optional: true
-  checksum: 877f652fffad82adae6e27f6369c80f0758906b3aec3f52c706852a7125bd387c7702189ab05002b8a5d378924dc743528d71ae1217a9e49be49868556039705
+  checksum: 56fecddd4fd0e8d6d051fbb23aba9787543b54e405d6270fb8b0ce9cabfe6a0fc4dd7d61ce306913ee3f6e9c801f9074da7417547d49951e85e393788d838270
   languageName: node
   linkType: hard
 
-"@runanywhere/core@patch:@runanywhere/core@npm%3A0.20.19#./.yarn/patches/@runanywhere-core-npm-0.20.19-f4d947d688.patch::locator=runanywhere-starter-app%40workspace%3A.":
-  version: 0.20.19
-  resolution: "@runanywhere/core@patch:@runanywhere/core@npm%3A0.20.19#./.yarn/patches/@runanywhere-core-npm-0.20.19-f4d947d688.patch::version=0.20.19&hash=d4f7e7&locator=runanywhere-starter-app%40workspace%3A."
+"@runanywhere/core@patch:@runanywhere/core@npm%3A0.20.27#./.yarn/patches/@runanywhere-core-npm-0.20.27-a8e57b7c88.patch::locator=runanywhere-starter-app%40workspace%3A.":
+  version: 0.20.27
+  resolution: "@runanywhere/core@patch:@runanywhere/core@npm%3A0.20.27#./.yarn/patches/@runanywhere-core-npm-0.20.27-a8e57b7c88.patch::version=0.20.27&hash=d4f7e7&locator=runanywhere-starter-app%40workspace%3A."
   dependencies:
     "@bufbuild/protobuf": ^2.12.1
-    "@runanywhere/proto-ts": 0.20.19
+    "@runanywhere/proto-ts": 0.20.27
     long: ^5.3.2
     protobufjs: ^7.5.8
   peerDependencies:
@@ -2393,49 +2393,49 @@ __metadata:
       optional: true
     react-native-fs:
       optional: true
-  checksum: b98d596145b9bbdf14983352b9a078ce5e3d75531c0b1e93e9fcffe2a3efee36e47f5648a719e06708bb65b545a136d4ce0a25f1e8d35c63f65dae7bac871dfd
+  checksum: b0341ff98f03c5053040e65481fef67f58e2530dcba6b03c8c4c486064a2b5542a26963a34e20aa6223d46615276ce93b3e2f8bfc68249920b500a2bd9633ebf
   languageName: node
   linkType: hard
 
-"@runanywhere/llamacpp@npm:0.20.19":
-  version: 0.20.19
-  resolution: "@runanywhere/llamacpp@npm:0.20.19"
+"@runanywhere/llamacpp@npm:0.20.27":
+  version: 0.20.27
+  resolution: "@runanywhere/llamacpp@npm:0.20.27"
   dependencies:
     "@bufbuild/protobuf": ^2.12.1
-    "@runanywhere/proto-ts": 0.20.19
+    "@runanywhere/proto-ts": 0.20.27
   peerDependencies:
-    "@runanywhere/core": ">=0.20.19"
+    "@runanywhere/core": ">=0.20.27"
     react: ">=19.0.0"
     react-native: ">=0.83.1"
     react-native-nitro-modules: ^0.33.9
-  checksum: dddad4a76df11ab271e7fb174d60a02ac1488754869b306c5085dc016f1536fa00a47dee6daf9317a3c4d789f38318d5c8f618efc88d9a03ad6346e23c6b1b1e
+  checksum: 574cdc789958014171db4533966be93a0d32c72cedddc2b6aa6705e1c4fba0b09377aa1468e611b2ceabc8e701e86ef8b808fa5e16412da874bb79caece7bb47
   languageName: node
   linkType: hard
 
-"@runanywhere/mlx@npm:0.20.19":
-  version: 0.20.19
-  resolution: "@runanywhere/mlx@npm:0.20.19"
+"@runanywhere/mlx@npm:0.20.27":
+  version: 0.20.27
+  resolution: "@runanywhere/mlx@npm:0.20.27"
   peerDependencies:
-    "@runanywhere/core": ">=0.20.19"
+    "@runanywhere/core": ">=0.20.27"
     react: ">=19.0.0"
     react-native: ">=0.83.1"
     react-native-nitro-modules: ^0.33.9
-  checksum: c966c02575dc5a1dc85a4c31a563e0da77e2d3c980bf9f999d1b7aebcea71b54791244f603152d7afd1dc952ebf58aadb99069aa40f75b35661aa1178692a121
+  checksum: 85964c49ceba0f473c9f5fa5dd27fd604584fcde69f0a3d2d3d50ae35d51073dcb85692b4301b9c9d023e1c842de5e3353cb75c794096e99b83e8650275d67c7
   languageName: node
   linkType: hard
 
-"@runanywhere/onnx@npm:0.20.19":
-  version: 0.20.19
-  resolution: "@runanywhere/onnx@npm:0.20.19"
+"@runanywhere/onnx@npm:0.20.27":
+  version: 0.20.27
+  resolution: "@runanywhere/onnx@npm:0.20.27"
   dependencies:
     "@bufbuild/protobuf": ^2.12.1
-    "@runanywhere/proto-ts": 0.20.19
+    "@runanywhere/proto-ts": 0.20.27
   peerDependencies:
-    "@runanywhere/core": ">=0.20.19"
+    "@runanywhere/core": ">=0.20.27"
     react: ">=19.0.0"
     react-native: ">=0.83.1"
     react-native-nitro-modules: ^0.33.9
-  checksum: f0d3db99d037930af2e981ed5c17c72e423856013db044d2ff1dbd3a1571bfa922fd2afb2c4742c44842e0ce0e3e8c10f6ee44f0a6048e6cccb4cbd7fef3dcc4
+  checksum: b0b7e5e209022e8cb22d647cb62865968e94949ed9beaba788231f2d6624bdf32cd559f312e9686250d63ebc98b05915f6e34076bb4c58695edeb3268cdd117b
   languageName: node
   linkType: hard
 
@@ -2445,6 +2445,15 @@ __metadata:
   dependencies:
     "@bufbuild/protobuf": ^2.12.1
   checksum: 7ce88edb7d6c67beb21e19618b7855b601bf984b75ab00756a3b499ac90c572622fd0c8da86d6643306fd270f36cab3ff1e01dcd3d43ad4bc05426abdea360b5
+  languageName: node
+  linkType: hard
+
+"@runanywhere/proto-ts@npm:0.20.27":
+  version: 0.20.27
+  resolution: "@runanywhere/proto-ts@npm:0.20.27"
+  dependencies:
+    "@bufbuild/protobuf": ^2.12.1
+  checksum: b66fabe404dd75d7b37bdf3222019236382e6506693b6644e95a9906363e06543bfb0ccdc28f9b9e5a4d4587419748cbaf93c97c024229df6ee64a97f32a8077
   languageName: node
   linkType: hard
 
@@ -7445,11 +7454,11 @@ __metadata:
     "@react-native/typescript-config": 0.83.1
     "@react-navigation/native": ^7.1.24
     "@react-navigation/stack": ^7.6.16
-    "@runanywhere/core": 0.20.19
-    "@runanywhere/llamacpp": 0.20.19
-    "@runanywhere/mlx": 0.20.19
-    "@runanywhere/onnx": 0.20.19
-    "@runanywhere/proto-ts": 0.20.19
+    "@runanywhere/core": 0.20.27
+    "@runanywhere/llamacpp": 0.20.27
+    "@runanywhere/mlx": 0.20.27
+    "@runanywhere/onnx": 0.20.27
+    "@runanywhere/proto-ts": 0.20.27
     "@runanywhere/qhexrt": 0.20.19
     "@types/jest": ^29.5.12
     "@types/node": ^22.10.2

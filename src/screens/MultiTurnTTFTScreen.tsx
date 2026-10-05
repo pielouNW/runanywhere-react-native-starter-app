@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { RunAnywhere } from '@runanywhere/core';
 import type { ChatMessage, GenerationEvent } from '@runanywhere/core';
-import { Chat as NWChat, SamplerPresets } from 'react-native-nobodywho';
+// NW disabled: NobodyWho is unlinked while RunAnywhere is tested alone.
+// import { Chat as NWChat, SamplerPresets } from 'react-native-nobodywho';
+import type { Chat as NWChat } from 'react-native-nobodywho';
 import { AppColors } from '../theme';
 import { useModelService, MODEL_CREDITS, MODEL_IDS, MODEL_NAMES } from '../services/ModelService';
 import { ModelLoaderWidget, ActionButton, FindingHeader, MONO, ResultCard  } from '../components';
@@ -69,7 +71,8 @@ interface NWSample extends EngineSample {
 interface TurnSample {
   turn: number;
   ra: EngineSample;
-  nw: NWSample;
+  // NW disabled: absent while NobodyWho is unlinked.
+  nw?: NWSample;
 }
 
 /** Stream one RunAnywhere turn and return client-measured TTFT plus the SDK's metrics. */
@@ -185,17 +188,20 @@ export const MultiTurnTTFTScreen: React.FC = () => {
     setSamples([]);
     stopRef.current = false;
 
-    let nwChat: NWChat | null = null;
+    // NW disabled
+    // let nwChat: NWChat | null = null;
     const history: ChatMessage[] = [];
-    let nwContext = 0;
+    // NW disabled
+    // let nwContext = 0;
     try {
-      nwChat = new NWChat({
-        model: modelService.nwModel!,
-        systemPrompt: SYSTEM_PROMPT,
-        contextSize: CONTEXT_SIZE,
-        sampler: SamplerPresets.greedy(),
-        templateVariables: { enable_thinking: false },
-      });
+      // NW disabled
+      // nwChat = new NWChat({
+      //   model: modelService.nwModel!,
+      //   systemPrompt: SYSTEM_PROMPT,
+      //   contextSize: CONTEXT_SIZE,
+      //   sampler: SamplerPresets.greedy(),
+      //   templateVariables: { enable_thinking: false },
+      // });
       for (let i = 0; i < SCRIPT.length && !stopRef.current; i++) {
         const prompt = SCRIPT[i]!;
 
@@ -203,20 +209,23 @@ export const MultiTurnTTFTScreen: React.FC = () => {
         const { sample: ra, reply } = await runRATurn(history);
         history.push({ role: 'assistant', content: reply });
 
-        const { sample: nw, contextAfter } = await runNWTurn(nwChat, prompt, nwContext);
-        nwContext = contextAfter;
+        // NW disabled
+        // const { sample: nw, contextAfter } = await runNWTurn(nwChat, prompt, nwContext);
+        // nwContext = contextAfter;
 
-        setSamples(prev => [...prev, { turn: i + 1, ra, nw }]);
+        setSamples(prev => [...prev, { turn: i + 1, ra }]);
       }
     } catch (e) {
       setError(String(e));
     } finally {
-      nwChat?.destroy();
+      // NW disabled
+      // nwChat?.destroy();
       setIsRunning(false);
     }
   };
 
-  if (modelService.loadedLLMId !== MODEL_ID || modelService.nwModelId !== MODEL_ID) {
+  // NW disabled: only RunAnywhere has to hold the model.
+  if (modelService.loadedLLMId !== MODEL_ID /* || modelService.nwModelId !== MODEL_ID */) {
     const raBusy = modelService.isLLMDownloading || modelService.isLLMLoading;
 
     return (
@@ -234,17 +243,20 @@ export const MultiTurnTTFTScreen: React.FC = () => {
           if (modelService.loadedLLMId !== MODEL_ID) {
             await modelService.downloadAndLoadLanguageModel(MODEL_ID);
           }
-          await modelService.downloadAndLoadNW(MODEL_ID);
+          // NW disabled
+          // await modelService.downloadAndLoadNW(MODEL_ID);
         }}
       />
     );
   }
 
-  const maxTtft = Math.max(1, ...samples.flatMap(s => [s.ra.ttftMs, s.nw.ttftMs]));
+  // NW disabled: `s.nw` is absent, so it counts as 0.
+  const maxTtft = Math.max(1, ...samples.flatMap(s => [s.ra.ttftMs, s.nw?.ttftMs ?? 0]));
   const first = samples[0];
   const last = samples[samples.length - 1];
   const raTotal = samples.reduce((sum, s) => sum + s.ra.ttftMs, 0);
-  const nwTotal = samples.reduce((sum, s) => sum + s.nw.ttftMs, 0);
+  // NW disabled
+  // const nwTotal = samples.reduce((sum, s) => sum + s.nw.ttftMs, 0);
 
   return (
     <ScrollView style={styles.screenContainer} contentContainerStyle={styles.contentContainer}>
@@ -275,24 +287,30 @@ export const MultiTurnTTFTScreen: React.FC = () => {
           <View style={styles.legendRowContainer}>
             <View style={[styles.legendSwatchContainer, { backgroundColor: ACCENT }]} />
             <Text style={styles.legendText}>RunAnywhere</Text>
+            {/* NW disabled
             <View style={[styles.legendSwatchContainer, { backgroundColor: AppColors.accentViolet }]} />
             <Text style={styles.legendText}>NobodyWho</Text>
+            */}
           </View>
           {samples.map(s => (
             <View key={s.turn} style={styles.turnRowContainer}>
               <Text style={styles.turnLabel}>{String(s.turn).padStart(2, ' ')}</Text>
               <View style={styles.barsContainer}>
                 <View style={[styles.barContainer, { width: `${(s.ra.ttftMs / maxTtft) * 100}%`, backgroundColor: ACCENT }]} />
+                {/* NW disabled
                 <View
                   style={[
                     styles.barContainer,
                     { width: `${(s.nw.ttftMs / maxTtft) * 100}%`, backgroundColor: AppColors.accentViolet },
                   ]}
                 />
+                */}
               </View>
               <View>
                 <Text style={[styles.turnValue, { color: ACCENT }]}>{Math.round(s.ra.ttftMs)} ms</Text>
+                {/* NW disabled
                 <Text style={[styles.turnValue, { color: AppColors.accentViolet }]}>{Math.round(s.nw.ttftMs)} ms</Text>
+                */}
               </View>
             </View>
           ))}
@@ -309,12 +327,14 @@ export const MultiTurnTTFTScreen: React.FC = () => {
             `  turn 1:  ${Math.round(first.ra.ttftMs)} ms  (${first.ra.inputTokens} prompt tokens)\n` +
             `  turn ${last.turn}: ${Math.round(last.ra.ttftMs)} ms  (${last.ra.inputTokens} prompt tokens)\n` +
             `  decode: ${last.ra.tokensPerSecond.toFixed(0)} tok/s\n` +
-            'NobodyWho\n' +
-            `  turn 1:  ${Math.round(first.nw.ttftMs)} ms  (${first.nw.inputTokens} prompt tokens)\n` +
-            `  turn ${last.turn}: ${Math.round(last.nw.ttftMs)} ms  (${last.nw.inputTokens} prompt tokens, ` +
-            `~${last.nw.prefilledTokens} new)\n` +
-            `  decode: ${last.nw.tokensPerSecond.toFixed(0)} tok/s\n` +
-            `cumulative wait: RunAnywhere ${(raTotal / 1000).toFixed(2)} s, NobodyWho ${(nwTotal / 1000).toFixed(2)} s`
+            // NW disabled
+            // 'NobodyWho\n' +
+            // `  turn 1:  ${Math.round(first.nw.ttftMs)} ms  (${first.nw.inputTokens} prompt tokens)\n` +
+            // `  turn ${last.turn}: ${Math.round(last.nw.ttftMs)} ms  (${last.nw.inputTokens} prompt tokens, ` +
+            // `~${last.nw.prefilledTokens} new)\n` +
+            // `  decode: ${last.nw.tokensPerSecond.toFixed(0)} tok/s\n` +
+            // `cumulative wait: RunAnywhere ${(raTotal / 1000).toFixed(2)} s, NobodyWho ${(nwTotal / 1000).toFixed(2)} s`
+            `cumulative wait: RunAnywhere ${(raTotal / 1000).toFixed(2)} s`
           }
         />
       ) : null}
