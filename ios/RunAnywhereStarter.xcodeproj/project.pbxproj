@@ -481,7 +481,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = L86FH3K93L;
+				DEVELOPMENT_TEAM = BWQCPDR8RH;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = RunAnywhereStarter/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
@@ -495,7 +495,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = nw.test.app;
 				PRODUCT_NAME = RunAnywhereStarter;
 				SWIFT_OBJC_BRIDGING_HEADER = "RunAnywhereStarter/RunAnywhereStarter-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -511,7 +511,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = L86FH3K93L;
+				DEVELOPMENT_TEAM = BWQCPDR8RH;
 				INFOPLIST_FILE = RunAnywhereStarter/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -524,7 +524,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = nw.test.app;
 				PRODUCT_NAME = RunAnywhereStarter;
 				SWIFT_OBJC_BRIDGING_HEADER = "RunAnywhereStarter/RunAnywhereStarter-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;

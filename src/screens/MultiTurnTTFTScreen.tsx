@@ -1,13 +1,33 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { RunAnywhere } from '@runanywhere/core';
 import type { ChatMessage, GenerationEvent } from '@runanywhere/core';
+import { Chat as NWChat, SamplerPresets } from 'react-native-nobodywho';
 import { AppColors } from '../theme';
-import { useModelService, MODEL_CREDITS } from '../services/ModelService';
+import { useModelService, MODEL_CREDITS, MODEL_IDS, MODEL_NAMES } from '../services/ModelService';
 import { ModelLoaderWidget, ActionButton, FindingHeader, MONO, ResultCard  } from '../components';
 
 const ACCENT = AppColors.accentCyan;
 const MAX_TOKENS = 64;
+
+/** RunAnywhere's llama.cpp backend loads with n_ctx 2048 and JS cannot change it, so NobodyWho matches. */
+const CONTEXT_SIZE = 2048;
+
+/**
+ * Greedy decoding, to match NobodyWho's `SamplerPresets.greedy()`. RunAnywhere
+ * builds a bare greedy sampler whenever temperature is 0; the other knobs are
+ * pinned anyway so none of its defaults (top-k 40, min-p 0.05, repeat penalty
+ * 1.1) can reach the chain.
+ */
+const RA_GREEDY = {
+  temperature: 0,
+  topK: 1,
+  topP: 1,
+  minP: 0,
+  repetitionPenalty: 1,
+  frequencyPenalty: 0,
+  presencePenalty: 0,
+} as const;
 
 const SYSTEM_PROMPT = 'You are a concise assistant. Answer in two or three sentences.';
 
@@ -34,20 +54,26 @@ const SCRIPT: readonly string[] = [
   'Can you summarise the itinerary we just discussed?',
 ];
 
-const NW_REFERENCE_TTFT: readonly number[] = [
-  17.2, 20.0, 19.9, 19.8, 20.0, 21.4, 20.4, 21.0, 20.7, 20.6,
-  27.0, 27.2, 27.3, 36.3, 23.7, 24.8, 25.7, 30.1, 29.2, 36.6,
-];
+const MODEL_ID = MODEL_IDS.attentionLlm;
 
-interface TurnSample {
-  turn: number;
+interface EngineSample {
   ttftMs: number;
   inputTokens: number;
   tokensPerSecond: number;
 }
 
-/** Stream one turn and return client-measured TTFT plus the SDK's metrics. */
-const runTurn = async (messages: ChatMessage[]): Promise<{ sample: Omit<TurnSample, 'turn'>; reply: string }> => {
+interface NWSample extends EngineSample {
+  prefilledTokens: number;
+}
+
+interface TurnSample {
+  turn: number;
+  ra: EngineSample;
+  nw: NWSample;
+}
+
+/** Stream one RunAnywhere turn and return client-measured TTFT plus the SDK's metrics. */
+const runRATurn = async (messages: ChatMessage[]): Promise<{ sample: EngineSample; reply: string }> => {
   const startedAt = performance.now();
   let firstTokenAt: number | null = null;
   let reply = '';
@@ -59,7 +85,7 @@ const runTurn = async (messages: ChatMessage[]): Promise<{ sample: Omit<TurnSamp
     .generateStream(messages, {
       systemPrompt: SYSTEM_PROMPT,
       maxOutputTokens: MAX_TOKENS,
-      temperature: 0,
+      ...RA_GREEDY,
       reasoning: { mode: 'off' },
     })
     [Symbol.asyncIterator]();
@@ -92,6 +118,55 @@ const runTurn = async (messages: ChatMessage[]): Promise<{ sample: Omit<TurnSamp
   };
 };
 
+/**
+ * Ask one NobodyWho turn. The chat keeps its own history and KV cache, so only
+ * the new user message is sent. `contextBefore` is the chat's context use
+ * after the previous turn, to tell how much of this prompt was new.
+ */
+const runNWTurn = async (
+  chat: NWChat,
+  prompt: string,
+  contextBefore: number,
+): Promise<{ sample: NWSample; contextAfter: number }> => {
+  const startedAt = performance.now();
+  let firstTokenAt: number | null = null;
+  let generated = 0;
+
+  // Manual iteration, like above: `nextToken` resolves undefined when done.
+  const stream = chat.ask(prompt);
+  for (;;) {
+    const token = await stream.nextToken();
+    if (token === undefined) {
+      break;
+    }
+    if (firstTokenAt === null) {
+      firstTokenAt = performance.now();
+    }
+    generated++;
+    
+    // NobodyWho has no per-ask token cap; stop at the same budget and keep
+    // draining so the partial reply lands in the history.
+    if (generated === MAX_TOKENS) {
+      chat.stopGeneration();
+    }
+  }
+  const finishedAt = performance.now();
+
+  const { contextUsed } = await chat.getStats();
+  const inputTokens = Math.max(0, contextUsed - generated);
+  const decodeSeconds = firstTokenAt === null ? 0 : (finishedAt - firstTokenAt) / 1000;
+
+  return {
+    sample: {
+      ttftMs: (firstTokenAt ?? finishedAt) - startedAt,
+      inputTokens,
+      prefilledTokens: Math.max(0, inputTokens - contextBefore),
+      tokensPerSecond: decodeSeconds > 0 ? (generated - 1) / decodeSeconds : 0,
+    },
+    contextAfter: contextUsed,
+  };
+};
+
 export const MultiTurnTTFTScreen: React.FC = () => {
   const modelService = useModelService();
   const [samples, setSamples] = useState<TurnSample[]>([]);
@@ -99,48 +174,77 @@ export const MultiTurnTTFTScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const stopRef = useRef(false);
 
+  // Other screens share the engines' single model slots: a run left going
+  // after leaving this screen would keep generating while another screen swaps
+  // the models underneath it.
+  useEffect(() => () => { stopRef.current = true; }, []);
+
   const handleRun = async () => {
     setIsRunning(true);
     setError(null);
     setSamples([]);
     stopRef.current = false;
 
+    let nwChat: NWChat | null = null;
     const history: ChatMessage[] = [];
+    let nwContext = 0;
     try {
+      nwChat = new NWChat({
+        model: modelService.nwModel!,
+        systemPrompt: SYSTEM_PROMPT,
+        contextSize: CONTEXT_SIZE,
+        sampler: SamplerPresets.greedy(),
+        templateVariables: { enable_thinking: false },
+      });
       for (let i = 0; i < SCRIPT.length && !stopRef.current; i++) {
-        history.push({ role: 'user', content: SCRIPT[i]! });
-        const { sample, reply } = await runTurn(history);
+        const prompt = SCRIPT[i]!;
+
+        history.push({ role: 'user', content: prompt });
+        const { sample: ra, reply } = await runRATurn(history);
         history.push({ role: 'assistant', content: reply });
-        setSamples(prev => [...prev, { turn: i + 1, ...sample }]);
+
+        const { sample: nw, contextAfter } = await runNWTurn(nwChat, prompt, nwContext);
+        nwContext = contextAfter;
+
+        setSamples(prev => [...prev, { turn: i + 1, ra, nw }]);
       }
     } catch (e) {
       setError(String(e));
     } finally {
+      nwChat?.destroy();
       setIsRunning(false);
     }
   };
 
-  if (!modelService.isLLMLoaded) {
+  if (modelService.loadedLLMId !== MODEL_ID || modelService.nwModelId !== MODEL_ID) {
+    const raBusy = modelService.isLLMDownloading || modelService.isLLMLoading;
+
     return (
       <ModelLoaderWidget
-        modelCredit={MODEL_CREDITS.llm}
+        modelCredit={MODEL_CREDITS.attentionLlm}
         title="LLM Model Required"
-        subtitle="Load a language model to measure multi-turn TTFT"
+        subtitle="Load the same model in RunAnywhere and NobodyWho to measure multi-turn TTFT"
         icon="chat"
         accentColor={ACCENT}
-        isDownloading={modelService.isLLMDownloading}
-        isLoading={modelService.isLLMLoading}
-        progress={modelService.llmDownloadProgress}
-        onLoad={modelService.downloadAndLoadLLM}
+        isDownloading={raBusy ? modelService.isLLMDownloading : modelService.isNWDownloading}
+        isLoading={raBusy ? modelService.isLLMLoading : modelService.isNWLoading}
+        progress={raBusy ? modelService.llmDownloadProgress : modelService.nwDownloadProgress}
+        progressLabel={raBusy ? 'RunAnywhere' : 'NobodyWho'}
+        onLoad={async () => {
+          if (modelService.loadedLLMId !== MODEL_ID) {
+            await modelService.downloadAndLoadLanguageModel(MODEL_ID);
+          }
+          await modelService.downloadAndLoadNW(MODEL_ID);
+        }}
       />
     );
   }
 
-  const maxTtft = Math.max(1, ...samples.map(s => s.ttftMs), ...NW_REFERENCE_TTFT);
+  const maxTtft = Math.max(1, ...samples.flatMap(s => [s.ra.ttftMs, s.nw.ttftMs]));
   const first = samples[0];
   const last = samples[samples.length - 1];
-  const raTotal = samples.reduce((sum, s) => sum + s.ttftMs, 0);
-  const nwTotal = NW_REFERENCE_TTFT.slice(0, samples.length).reduce((sum, v) => sum + v, 0);
+  const raTotal = samples.reduce((sum, s) => sum + s.ra.ttftMs, 0);
+  const nwTotal = samples.reduce((sum, s) => sum + s.nw.ttftMs, 0);
 
   return (
     <ScrollView style={styles.screenContainer} contentContainerStyle={styles.contentContainer}>
@@ -170,26 +274,26 @@ export const MultiTurnTTFTScreen: React.FC = () => {
         <View style={styles.chartContainer}>
           <View style={styles.legendRowContainer}>
             <View style={[styles.legendSwatchContainer, { backgroundColor: ACCENT }]} />
-            <Text style={styles.legendText}>RunAnywhere (this device)</Text>
+            <Text style={styles.legendText}>RunAnywhere</Text>
             <View style={[styles.legendSwatchContainer, { backgroundColor: AppColors.accentViolet }]} />
-            <Text style={styles.legendText}>NobodyWho (reference)</Text>
+            <Text style={styles.legendText}>NobodyWho</Text>
           </View>
           {samples.map(s => (
             <View key={s.turn} style={styles.turnRowContainer}>
               <Text style={styles.turnLabel}>{String(s.turn).padStart(2, ' ')}</Text>
               <View style={styles.barsContainer}>
-                <View style={[styles.barContainer, { width: `${(s.ttftMs / maxTtft) * 100}%`, backgroundColor: ACCENT }]} />
+                <View style={[styles.barContainer, { width: `${(s.ra.ttftMs / maxTtft) * 100}%`, backgroundColor: ACCENT }]} />
                 <View
                   style={[
                     styles.barContainer,
-                    {
-                      width: `${(NW_REFERENCE_TTFT[s.turn - 1]! / maxTtft) * 100}%`,
-                      backgroundColor: AppColors.accentViolet,
-                    },
+                    { width: `${(s.nw.ttftMs / maxTtft) * 100}%`, backgroundColor: AppColors.accentViolet },
                   ]}
                 />
               </View>
-              <Text style={styles.turnValue}>{Math.round(s.ttftMs)} ms</Text>
+              <View>
+                <Text style={[styles.turnValue, { color: ACCENT }]}>{Math.round(s.ra.ttftMs)} ms</Text>
+                <Text style={[styles.turnValue, { color: AppColors.accentViolet }]}>{Math.round(s.nw.ttftMs)} ms</Text>
+              </View>
             </View>
           ))}
         </View>
@@ -197,14 +301,20 @@ export const MultiTurnTTFTScreen: React.FC = () => {
 
       {first && last && samples.length > 1 ? (
         <ResultCard
-          title={`Turn ${last.turn} is ${(last.ttftMs / first.ttftMs).toFixed(1)}× slower to start than turn 1`}
-          verdict={last.ttftMs > first.ttftMs * 2 ? 'fail' : 'info'}
+          title={`RunAnywhere turn ${last.turn} is ${(last.ra.ttftMs / first.ra.ttftMs).toFixed(1)}× slower to start than turn 1`}
+          verdict={last.ra.ttftMs > first.ra.ttftMs * 2 ? 'fail' : 'info'}
           mono
           body={
-            `turn 1:  ${Math.round(first.ttftMs)} ms  (${first.inputTokens} prompt tokens)\n` +
-            `turn ${last.turn}: ${Math.round(last.ttftMs)} ms  (${last.inputTokens} prompt tokens)\n` +
-            `cumulative wait: ${(raTotal / 1000).toFixed(2)} s  (NobodyWho ref: ${(nwTotal / 1000).toFixed(2)} s)\n` +
-            `decode: ${last.tokensPerSecond.toFixed(0)} tok/s, flat, so the growth is prefill, not decode`
+            'RunAnywhere\n' +
+            `  turn 1:  ${Math.round(first.ra.ttftMs)} ms  (${first.ra.inputTokens} prompt tokens)\n` +
+            `  turn ${last.turn}: ${Math.round(last.ra.ttftMs)} ms  (${last.ra.inputTokens} prompt tokens)\n` +
+            `  decode: ${last.ra.tokensPerSecond.toFixed(0)} tok/s\n` +
+            'NobodyWho\n' +
+            `  turn 1:  ${Math.round(first.nw.ttftMs)} ms  (${first.nw.inputTokens} prompt tokens)\n` +
+            `  turn ${last.turn}: ${Math.round(last.nw.ttftMs)} ms  (${last.nw.inputTokens} prompt tokens, ` +
+            `~${last.nw.prefilledTokens} new)\n` +
+            `  decode: ${last.nw.tokensPerSecond.toFixed(0)} tok/s\n` +
+            `cumulative wait: RunAnywhere ${(raTotal / 1000).toFixed(2)} s, NobodyWho ${(nwTotal / 1000).toFixed(2)} s`
           }
         />
       ) : null}
@@ -212,9 +322,10 @@ export const MultiTurnTTFTScreen: React.FC = () => {
       <ResultCard
         title="Reading the chart"
         body={
-          'The prompt-token count grows with every turn and RunAnywhere prefills all of it ' +
-          'again. The NobodyWho bars are Qwen3-0.6B on an M4 Pro (benchmark-summary.json), ' +
-          'so compare the shape of the two series, not the absolute values.'
+          `Both engines run the same ${MODEL_NAMES.attentionLlm} file on this device, one after the ` +
+          'other each turn, with greedy sampling and thinking off. The prompt grows with ' +
+          'every turn: RunAnywhere prefills all of it again, NobodyWho reuses the cached ' +
+          'prefix and prefills only the tail that changed.'
         }
       />
     </ScrollView>

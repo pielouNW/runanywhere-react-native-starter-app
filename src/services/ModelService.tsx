@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 import { modelCredit } from './modelOrg';
 import { RunAnywhere } from '@runanywhere/core';
+import { Model as NWModel, downloadModel as nwDownloadModel } from 'react-native-nobodywho';
 import {
   ModelCategory,
   InferenceFramework,
@@ -13,7 +14,8 @@ import {
 // See: runanywhere-sdks/examples/react-native/RunAnywhereAI/src/services/ModelCatalogBootstrap.ts
 export const MODEL_IDS = {
   llm: 'qwen3.5-0.8b-q4_k_m', // Qwen3.5 - smallest current-generation chat model
-  vlm: 'qwen2-vl-2b-instruct-q4_k_m', // LFM2 - ultra-light vision model
+  attentionLlm: 'qwen3-0.6b-q4_k_m', // Qwen3 - attention-only, for the multi-turn TTFT screen
+  vlm:'qwen2-vl-2b-instruct-q4_k_m', // LFM2 - ultra-light vision model
   stt: 'sherpa-onnx-whisper-tiny.en',
   tts: 'vits-piper-en_US-lessac-medium',
 } as const;
@@ -21,10 +23,30 @@ export const MODEL_IDS = {
 /** Display names, kept beside the ids they belong to. */
 export const MODEL_NAMES = {
   llm: 'Qwen3.5 0.8B Q4_K_M',
+  attentionLlm: 'Qwen3 0.6B Q4_K_M',
   vlm: 'qwen2-vl-2b-instruct-q4_k_m',
   stt: 'Sherpa Whisper Tiny (ONNX)',
   tts: 'Piper TTS (US English - Medium)',
 } as const;
+
+/** The LLMs RunAnywhere's language slot and NobodyWho's copy can hold. */
+export type LLMId = typeof MODEL_IDS.llm | typeof MODEL_IDS.attentionLlm;
+
+/**
+ * GGUF urls, shared by RunAnywhere's registry and NobodyWho's downloader so
+ * side-by-side screens compare identical weights.
+ *
+ * The multi-turn TTFT screen runs Qwen3: it is attention-only, so NobodyWho
+ * can trim its KV cache back to the prefix a new turn shares. 18 of Qwen3.5's
+ * 24 layers are recurrent, and NobodyWho 4.0.0 cannot trim those, so it would
+ * re-read the whole conversation every turn just as RunAnywhere does.
+ */
+export const LLM_URLS: Record<LLMId, string> = {
+  [MODEL_IDS.llm]:
+    'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf',
+  [MODEL_IDS.attentionLlm]:
+    'https://huggingface.co/bartowski/Qwen_Qwen3-0.6B-GGUF/resolve/main/Qwen_Qwen3-0.6B-Q4_K_M.gguf',
+};
 
 /**
  * "Qwen3.5 0.8B Q4_K_M · Alibaba", for the loader screens. A starter that only
@@ -33,6 +55,7 @@ export const MODEL_NAMES = {
  */
 export const MODEL_CREDITS = {
   llm: modelCredit(MODEL_IDS.llm, MODEL_NAMES.llm),
+  attentionLlm: modelCredit(MODEL_IDS.attentionLlm, MODEL_NAMES.attentionLlm),
   vlm: modelCredit(MODEL_IDS.vlm, MODEL_NAMES.vlm),
   stt: modelCredit(MODEL_IDS.stt, MODEL_NAMES.stt),
   tts: modelCredit(MODEL_IDS.tts, MODEL_NAMES.tts),
@@ -52,31 +75,44 @@ interface ModelServiceState {
   isVLMDownloading: boolean;
   isSTTDownloading: boolean;
   isTTSDownloading: boolean;
+  isNWDownloading: boolean;
 
   llmDownloadProgress: number;
   vlmDownloadProgress: number;
   sttDownloadProgress: number;
   ttsDownloadProgress: number;
+  nwDownloadProgress: number;
 
   // Load state
   isLLMLoading: boolean;
   isVLMLoading: boolean;
   isSTTLoading: boolean;
   isTTSLoading: boolean;
+  isNWLoading: boolean;
 
   // Loaded state
+  /** RunAnywhere holds `MODEL_IDS.llm`. */
   isLLMLoaded: boolean;
+  /** The LLM RunAnywhere holds. Commons keeps one resident, so loading one evicts the other. */
+  loadedLLMId: LLMId | null;
   isVLMLoaded: boolean;
   isSTTLoaded: boolean;
   isTTSLoaded: boolean;
+
+  /** NobodyWho's copy of one LLM, for side-by-side benchmarks. */
+  nwModel: NWModel | null;
+  /** The LLM `nwModel` holds; one at a time, like RunAnywhere's slot. */
+  nwModelId: LLMId | null;
 
   isVoiceAgentReady: boolean;
 
   // Actions
   downloadAndLoadLLM: () => Promise<void>;
+  downloadAndLoadLanguageModel: (modelId: LLMId) => Promise<void>;
   downloadAndLoadVLM: () => Promise<void>;
   downloadAndLoadSTT: () => Promise<void>;
   downloadAndLoadTTS: () => Promise<void>;
+  downloadAndLoadNW: (modelId: LLMId) => Promise<void>;
   downloadAndLoadAllModels: () => Promise<void>;
   unloadAllModels: () => Promise<void>;
 }
@@ -130,23 +166,31 @@ export const ModelServiceProvider: React.FC<ModelServiceProviderProps> = ({ chil
   const [isVLMDownloading, setIsVLMDownloading] = useState(false);
   const [isSTTDownloading, setIsSTTDownloading] = useState(false);
   const [isTTSDownloading, setIsTTSDownloading] = useState(false);
+  const [isNWDownloading, setIsNWDownloading] = useState(false);
 
   const [llmDownloadProgress, setLLMDownloadProgress] = useState(0);
   const [vlmDownloadProgress, setVLMDownloadProgress] = useState(0);
   const [sttDownloadProgress, setSTTDownloadProgress] = useState(0);
   const [ttsDownloadProgress, setTTSDownloadProgress] = useState(0);
+  const [nwDownloadProgress, setNWDownloadProgress] = useState(0);
 
   // Load state
   const [isLLMLoading, setIsLLMLoading] = useState(false);
   const [isVLMLoading, setIsVLMLoading] = useState(false);
   const [isSTTLoading, setIsSTTLoading] = useState(false);
   const [isTTSLoading, setIsTTSLoading] = useState(false);
+  const [isNWLoading, setIsNWLoading] = useState(false);
 
   // Loaded state
-  const [isLLMLoaded, setIsLLMLoaded] = useState(false);
+  // RunAnywhere keeps one language model resident, so the two LLMs evict
+  // each other: track which one it holds.
+  const [loadedLLMId, setLoadedLLMId] = useState<LLMId | null>(null);
+  const isLLMLoaded = loadedLLMId === MODEL_IDS.llm;
   const [isVLMLoaded, setIsVLMLoaded] = useState(false);
   const [isSTTLoaded, setIsSTTLoaded] = useState(false);
   const [isTTSLoaded, setIsTTSLoaded] = useState(false);
+
+  const [nw, setNW] = useState<{ id: LLMId; model: NWModel } | null>(null);
 
   const isVoiceAgentReady = isLLMLoaded && isSTTLoaded && isTTSLoaded;
 
@@ -158,14 +202,15 @@ export const ModelServiceProvider: React.FC<ModelServiceProviderProps> = ({ chil
     []
   );
 
-  // Download and load LLM
-  const downloadAndLoadLLM = useCallback(async () => {
+  // Download and load one LLM. Both LLMs share these flags: there is one
+  // language slot, so one of them loads at a time.
+  const downloadAndLoadLanguageModel = useCallback(async (modelId: LLMId) => {
     if (isLLMDownloading || isLLMLoading) return;
 
     try {
-      const model = await getRegisteredModel(MODEL_IDS.llm);
+      const model = await getRegisteredModel(modelId);
       if (!model) {
-        console.error('LLM model not registered:', MODEL_IDS.llm);
+        console.error('LLM model not registered:', modelId);
         return;
       }
 
@@ -173,16 +218,19 @@ export const ModelServiceProvider: React.FC<ModelServiceProviderProps> = ({ chil
         setIsLLMDownloading(true);
         setLLMDownloadProgress(0);
 
-        await downloadWithProgress(MODEL_IDS.llm, setLLMDownloadProgress);
+        await downloadWithProgress(modelId, setLLMDownloadProgress);
 
         setIsLLMDownloading(false);
       }
 
       // Load the model (canonical id-based lifecycle — the native registry
       // resolves the on-disk artifact path internally, and throws on failure).
+      // Loading evicts the resident LLM, so neither counts as loaded until
+      // this one is.
       setIsLLMLoading(true);
-      await RunAnywhere.models.load(MODEL_IDS.llm);
-      setIsLLMLoaded(true);
+      setLoadedLLMId(null);
+      await RunAnywhere.models.load(modelId);
+      setLoadedLLMId(modelId);
       setIsLLMLoading(false);
     } catch (error) {
       console.error('LLM download/load error:', error);
@@ -190,6 +238,13 @@ export const ModelServiceProvider: React.FC<ModelServiceProviderProps> = ({ chil
       setIsLLMLoading(false);
     }
   }, [isLLMDownloading, isLLMLoading, getRegisteredModel]);
+
+  // Download and load LLM. Takes no argument: loader widgets pass it straight
+  // to `onPress`, which would hand it the press event.
+  const downloadAndLoadLLM = useCallback(
+    () => downloadAndLoadLanguageModel(MODEL_IDS.llm),
+    [downloadAndLoadLanguageModel]
+  );
 
   // Download and load VLM (vision-language model, MULTIMODAL category)
   const downloadAndLoadVLM = useCallback(async () => {
@@ -284,6 +339,36 @@ export const ModelServiceProvider: React.FC<ModelServiceProviderProps> = ({ chil
     }
   }, [isTTSDownloading, isTTSLoading, getRegisteredModel]);
 
+  // Download and load NobodyWho's copy of an LLM, releasing the other one
+  // first so only one copy sits in memory.
+  const downloadAndLoadNW = useCallback(async (modelId: LLMId) => {
+    if (isNWDownloading || isNWLoading || nw?.id === modelId) {
+      return;
+    }
+
+    setIsNWLoading(true);
+    try {
+      nw?.model.destroy();
+      setNW(null);
+
+      const localPath = await nwDownloadModel({
+        modelPath: LLM_URLS[modelId],
+        onDownloadProgress: (downloaded, total) => {
+          setIsNWDownloading(true);
+          setNWDownloadProgress(total > 0 ? (downloaded / total) * 100 : 0);
+        },
+      });
+      setIsNWDownloading(false);
+
+      setNW({ id: modelId, model: await NWModel.load({ modelPath: localPath }) });
+    } catch (error) {
+      console.error('NobodyWho download/load error:', error);
+      setIsNWDownloading(false);
+    } finally {
+      setIsNWLoading(false);
+    }
+  }, [isNWDownloading, isNWLoading, nw]);
+
   // Download and load all models
   const downloadAndLoadAllModels = useCallback(async () => {
     await Promise.all([
@@ -299,7 +384,7 @@ export const ModelServiceProvider: React.FC<ModelServiceProviderProps> = ({ chil
   // UI claiming models were still loaded when most had already been unloaded.
   const unloadAllModels = useCallback(async () => {
     const targets: Array<[ModelCategory, (loaded: boolean) => void]> = [
-      [ModelCategory.MODEL_CATEGORY_LANGUAGE, setIsLLMLoaded],
+      [ModelCategory.MODEL_CATEGORY_LANGUAGE, () => setLoadedLLMId(null)],
       [ModelCategory.MODEL_CATEGORY_MULTIMODAL, setIsVLMLoaded],
       [ModelCategory.MODEL_CATEGORY_SPEECH_RECOGNITION, setIsSTTLoaded],
       [ModelCategory.MODEL_CATEGORY_SPEECH_SYNTHESIS, setIsTTSLoaded],
@@ -314,30 +399,43 @@ export const ModelServiceProvider: React.FC<ModelServiceProviderProps> = ({ chil
         }
       })
     );
-  }, []);
+
+    if (nw) {
+      nw.model.destroy();
+      setNW(null);
+    }
+  }, [nw]);
 
   const value: ModelServiceState = {
     isLLMDownloading,
     isVLMDownloading,
     isSTTDownloading,
     isTTSDownloading,
+    isNWDownloading,
     llmDownloadProgress,
     vlmDownloadProgress,
     sttDownloadProgress,
     ttsDownloadProgress,
+    nwDownloadProgress,
     isLLMLoading,
     isVLMLoading,
     isSTTLoading,
     isTTSLoading,
+    isNWLoading,
     isLLMLoaded,
+    loadedLLMId,
     isVLMLoaded,
     isSTTLoaded,
     isTTSLoaded,
+    nwModel: nw?.model ?? null,
+    nwModelId: nw?.id ?? null,
     isVoiceAgentReady,
     downloadAndLoadLLM,
+    downloadAndLoadLanguageModel,
     downloadAndLoadVLM,
     downloadAndLoadSTT,
     downloadAndLoadTTS,
+    downloadAndLoadNW,
     downloadAndLoadAllModels,
     unloadAllModels,
   };
@@ -361,9 +459,22 @@ export const registerDefaultModels = async ({
   await RunAnywhere.models.register({
     id: MODEL_IDS.llm,
     name: 'Qwen3.5 0.8B Q4_K_M',
-    url: 'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf',
+    url: LLM_URLS[MODEL_IDS.llm],
     framework: InferenceFramework.INFERENCE_FRAMEWORK_LLAMA_CPP,
     memoryRequirementBytes: 900_000_000,
+  });
+
+  // Attention-only LLM - Qwen3 0.6B, for the multi-turn TTFT screen, since
+  // NobodyWho 4.0.0 can reuse its prefix (see LLM_URLS). Qwen3 thinks by
+  // default, and commons only honours `reasoning: { mode: 'off' }` (by
+  // prepending "/no_think") for a model registered as thinking.
+  await RunAnywhere.models.register({
+    id: MODEL_IDS.attentionLlm,
+    name: MODEL_NAMES.attentionLlm,
+    url: LLM_URLS[MODEL_IDS.attentionLlm],
+    framework: InferenceFramework.INFERENCE_FRAMEWORK_LLAMA_CPP,
+    memoryRequirementBytes: 900_000_000,
+    supportsThinking: true,
   });
 
   // A smaller alternative for low-memory devices.

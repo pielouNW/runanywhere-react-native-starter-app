@@ -21,6 +21,7 @@ interface ModelLoaderWidgetProps {
   isDownloading: boolean;
   isLoading: boolean;
   progress: number;
+  progressLabel?: string;
   onLoad: () => void;
 }
 
@@ -32,8 +33,11 @@ export const ModelLoaderWidget: React.FC<ModelLoaderWidgetProps> = ({
   isDownloading,
   isLoading,
   progress,
+  progressLabel,
   onLoad,
 }) => {
+  const labelSuffix = progressLabel ? ` (${progressLabel})` : '';
+
   const getIconEmoji = () => {
     if (title.includes('LLM')) return '🤖';
     if (title.includes('Vision')) return '👁';
@@ -61,8 +65,8 @@ export const ModelLoaderWidget: React.FC<ModelLoaderWidgetProps> = ({
             <ActivityIndicator size="large" color={accentColor} />
             <Text style={styles.loadingText}>
               {isDownloading
-                ? `Downloading... ${Math.round(progress)}%`
-                : 'Loading model...'}
+                ? `Downloading${labelSuffix}... ${Math.round(progress)}%`
+                : `Loading model${labelSuffix}...`}
             </Text>
             {isDownloading && (
               <View style={styles.progressBarContainer}>

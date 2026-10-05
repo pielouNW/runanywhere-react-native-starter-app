@@ -19,6 +19,7 @@ import {
   TextToSpeechScreen,
   VoicePipelineScreen,
   MultiTurnTTFTScreen,
+  HistoryRolesScreen,
 } from './screens';
 import { RootStackParamList } from './navigation/types';
 
@@ -127,12 +128,17 @@ const App: React.FC = () => {
             <Stack.Screen
               name="MultiTurnTTFT"
               component={MultiTurnTTFTScreen}
-              options={{ title: 'MultiTurn TTFT' }}
+              options={{ title: 'MultiTurn TTFT · Qwen3' }}
             />
             <Stack.Screen
               name="StructuredOutput"
               component={StructuredOutputScreen}
               options={{ title: 'Structured Output' }}
+            />
+            <Stack.Screen
+              name="HistoryRoles"
+              component={HistoryRolesScreen}
+              options={{ title: 'History Roles' }}
             />
             <Stack.Screen
               name="NestedToolSchema"

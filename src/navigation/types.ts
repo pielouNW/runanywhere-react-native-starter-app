@@ -3,6 +3,7 @@ export type RootStackParamList = {
   Chat: undefined;
   Vision: undefined;
   MultiTurnTTFT: undefined;
+  HistoryRoles: undefined;
   StructuredOutput: undefined;
   NestedToolSchema: undefined;
   ToolCalling: undefined;

@@ -49,7 +49,8 @@ const getIconEmoji = (title: string): string => {
     Speech: '🎤',
     Voice: '🔊',
     Pipeline: '✨',
-    MultiTurnTTFT: "🏎️"
+    'TTFT Qwen3': '🏎️',
+    'History Roles': '📕'
   };
   return iconMap[title] || '⚡';
 };
@@ -57,7 +58,6 @@ const getIconEmoji = (title: string): string => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    margin: 8,
     borderRadius: 20,
     overflow: 'hidden',
     elevation: 8,
@@ -70,18 +70,17 @@ const styles = StyleSheet.create({
     padding: 20,
     minHeight: 160,
     justifyContent: 'center',
-    alignItems: 'center',
-  } as ViewStyle,
+    alignItems: 'left',
+  } as unknown as ViewStyle,
   icon: {
     fontSize: 48,
     marginBottom: 12,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '500',
     color: '#FFFFFF',
     marginBottom: 4,
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 13,

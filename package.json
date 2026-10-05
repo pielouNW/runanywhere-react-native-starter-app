@@ -28,6 +28,7 @@
     "react-native-linear-gradient": "^2.8.3",
     "react-native-live-audio-stream": "^1.1.1",
     "react-native-nitro-modules": "^0.33.9",
+    "react-native-nobodywho": "4.0.0",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.25.2",
     "react-native-sound": "^0.13.0"
@@ -55,6 +56,7 @@
     "node": ">=18"
   },
   "resolutions": {
+    "react-native-nobodywho@4.0.0": "patch:react-native-nobodywho@npm%3A4.0.0#./.yarn/patches/react-native-nobodywho-npm-4.0.0-2d4908f517.patch",
     "@runanywhere/core@0.20.19": "patch:@runanywhere/core@npm%3A0.20.19#./.yarn/patches/@runanywhere-core-npm-0.20.19-f4d947d688.patch"
   }
 }

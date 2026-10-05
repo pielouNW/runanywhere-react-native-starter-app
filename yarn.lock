@@ -7086,6 +7086,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-nobodywho@npm:4.0.0":
+  version: 4.0.0
+  resolution: "react-native-nobodywho@npm:4.0.0"
+  dependencies:
+    uniffi-bindgen-react-native: 0.30.0-1
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: cee25a4f173cd6b16b09097a5d73821f3cfc9fad18e86ef42c49fd950cb5ca7284f8a89807ce0cac92ec3b824190a04d541c63515742cfaf296176c3ccaefcbd
+  languageName: node
+  linkType: hard
+
+"react-native-nobodywho@patch:react-native-nobodywho@npm%3A4.0.0#./.yarn/patches/react-native-nobodywho-npm-4.0.0-2d4908f517.patch::locator=runanywhere-starter-app%40workspace%3A.":
+  version: 4.0.0
+  resolution: "react-native-nobodywho@patch:react-native-nobodywho@npm%3A4.0.0#./.yarn/patches/react-native-nobodywho-npm-4.0.0-2d4908f517.patch::version=4.0.0&hash=f693c8&locator=runanywhere-starter-app%40workspace%3A."
+  dependencies:
+    uniffi-bindgen-react-native: 0.30.0-1
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 26c8addc6a66707ba659d0ea2ef84542e15f8cd4629688abedefbb7c20823bb6591f8b072ee5666fab785ec87006a919e65c2d225b51bd2779a1cae78a94de6c
+  languageName: node
+  linkType: hard
+
 "react-native-safe-area-context@npm:~5.6.2":
   version: 5.6.2
   resolution: "react-native-safe-area-context@npm:5.6.2"
@@ -7440,6 +7464,7 @@ __metadata:
     react-native-linear-gradient: ^2.8.3
     react-native-live-audio-stream: ^1.1.1
     react-native-nitro-modules: ^0.33.9
+    react-native-nobodywho: 4.0.0
     react-native-safe-area-context: ~5.6.2
     react-native-screens: ~4.25.2
     react-native-sound: ^0.13.0
@@ -8249,6 +8274,16 @@ __metadata:
   version: 2.2.0
   resolution: "unicode-property-aliases-ecmascript@npm:2.2.0"
   checksum: 0dd0f6e70130c59b4a841bac206758f70227b113145e4afe238161e3e8540e8eb79963e7a228cd90ad13d499e96f7ef4ee8940835404b2181ad9bf9c174818e3
+  languageName: node
+  linkType: hard
+
+"uniffi-bindgen-react-native@npm:0.30.0-1":
+  version: 0.30.0-1
+  resolution: "uniffi-bindgen-react-native@npm:0.30.0-1"
+  bin:
+    ubrn: bin/cli.cjs
+    uniffi-bindgen-react-native: bin/cli.cjs
+  checksum: 1e1a346f4874e4cdf145b75c67d031d2ab340b1dec428a1bb81e6ed7352086987fa46d413854c40977644193b8ae63c5cec713f9da784c4d74b3c22b9c6727dc
   languageName: node
   linkType: hard
 

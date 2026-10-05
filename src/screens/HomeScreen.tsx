@@ -80,11 +80,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
             <View style={styles.row}>
               <FeatureCard
-                title="MultiTurnTTFT"
+                title="TTFT Qwen3"
                 subtitle="MultiTurn TTFT"
                 icon="multiTurn"
                 gradientColors={[AppColors.accentCyan, AppColors.accentViolet]}
                 onPress={() => navigation.navigate('MultiTurnTTFT')}
+              />
+              <FeatureCard
+                title="History Roles"
+                subtitle="History Roles"
+                icon="structured"
+                gradientColors={[AppColors.accentViolet, AppColors.accentPink]}
+                onPress={() => navigation.navigate('HistoryRoles')}
               />
             </View>
             <View style={styles.row}>
@@ -261,7 +268,6 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 16,
     gap: 0,
   },
   infoSection: {
