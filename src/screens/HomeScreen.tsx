@@ -87,27 +87,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 onPress={() => navigation.navigate('MultiTurnTTFT')}
               />
               <FeatureCard
-                title="History Roles"
-                subtitle="History Roles"
-                icon="structured"
-                gradientColors={[AppColors.accentViolet, AppColors.accentPink]}
-                onPress={() => navigation.navigate('HistoryRoles')}
-              />
-            </View>
-            <View style={styles.row}>
-              <FeatureCard
                 title="Structured"
                 subtitle="Structured Output"
                 icon="structured"
                 gradientColors={[AppColors.accentCyan, AppColors.accentViolet]}
                 onPress={() => navigation.navigate('StructuredOutput')}
-              />
-              <FeatureCard
-                title="Nested Tools"
-                subtitle="Nested Tool Schema"
-                icon="nested-tools"
-                gradientColors={[AppColors.accentOrange, AppColors.accentPink]}
-                onPress={() => navigation.navigate('NestedToolSchema')}
               />
             </View>
             <View style={styles.row}>

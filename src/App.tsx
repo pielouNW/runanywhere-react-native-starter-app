@@ -13,13 +13,11 @@ import {
   ChatScreen,
   VisionScreen,
   StructuredOutputScreen,
-  NestedToolSchemaScreen,
   ToolCallingScreen,
   SpeechToTextScreen,
   TextToSpeechScreen,
   VoicePipelineScreen,
   MultiTurnTTFTScreen,
-  HistoryRolesScreen,
 } from './screens';
 import { RootStackParamList } from './navigation/types';
 
@@ -134,16 +132,6 @@ const App: React.FC = () => {
               name="StructuredOutput"
               component={StructuredOutputScreen}
               options={{ title: 'Structured Output' }}
-            />
-            <Stack.Screen
-              name="HistoryRoles"
-              component={HistoryRolesScreen}
-              options={{ title: 'History Roles' }}
-            />
-            <Stack.Screen
-              name="NestedToolSchema"
-              component={NestedToolSchemaScreen}
-              options={{ title: 'Nested Tool Schema' }}
             />
             <Stack.Screen
               name="ToolCalling"
