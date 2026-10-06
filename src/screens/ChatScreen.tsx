@@ -11,22 +11,70 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { RunAnywhere } from '@runanywhere/core';
-import type { GenerationEvent, GenerationResult } from '@runanywhere/core';
+import type { GenerationEvent } from '@runanywhere/core';
+import { Chat as NWChat, SamplerPresets } from 'react-native-nobodywho';
 import { AppColors } from '../theme';
-import { useModelService, MODEL_CREDITS } from '../services/ModelService';
+import { useModelService, MODEL_CREDITS, MODEL_IDS } from '../services/ModelService';
 import { ChatMessageBubble, ChatMessage, ModelLoaderWidget } from '../components';
+
+const MODEL_ID = MODEL_IDS.llm;
+const MAX_TOKENS = 256;
+const SYSTEM_PROMPT = 'You are a helpful assistant.';
+
+/** RunAnywhere's llama.cpp backend loads with n_ctx 2048 and JS cannot change it, so NobodyWho matches. */
+const CONTEXT_SIZE = 2048;
+
+/**
+ * Greedy decoding, to match NobodyWho's `SamplerPresets.greedy()`. RunAnywhere
+ * builds a bare greedy sampler whenever temperature is 0; the other knobs are
+ * pinned anyway so none of its defaults (top-k 40, min-p 0.05, repeat penalty
+ * 1.1) can reach the chain.
+ */
+const RA_GREEDY = {
+  temperature: 0,
+  topK: 1,
+  topP: 1,
+  minP: 0,
+  repetitionPenalty: 1,
+  frequencyPenalty: 0,
+  presencePenalty: 0,
+} as const;
+
+type Backend = 'RunAnywhere' | 'NobodyWho';
 
 export const ChatScreen: React.FC = () => {
   const modelService = useModelService();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [streamingBackend, setStreamingBackend] = useState<Backend>('RunAnywhere');
   const [currentResponse, setCurrentResponse] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const responseRef = useRef(''); // Track response for closure
   const wasCancelledRef = useRef(false);
   // Closing the stream iterator is what cancels the native generation now.
   const streamRef = useRef<AsyncIterator<GenerationEvent> | null>(null);
+  const nwChatRef = useRef<NWChat | null>(null);
+
+  const nwModel = modelService.nwModelId === MODEL_ID ? modelService.nwModel : null;
+
+  // One NobodyWho chat per loaded model, with the same settings as RunAnywhere.
+  useEffect(() => {
+    if (!nwModel) return;
+    const chat = new NWChat({
+      model: nwModel,
+      systemPrompt: SYSTEM_PROMPT,
+      contextSize: CONTEXT_SIZE,
+      sampler: SamplerPresets.greedy(),
+      templateVariables: { enable_thinking: false },
+    });
+    nwChatRef.current = chat;
+    return () => {
+      nwChatRef.current = null;
+      chat.stopGeneration();
+      chat.destroy();
+    };
+  }, [nwModel]);
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -36,6 +84,104 @@ export const ChatScreen: React.FC = () => {
       }, 100);
     }
   }, [messages, currentResponse]);
+
+  /** Stream one RunAnywhere reply into the live bubble; TTFT is measured here, tok/s comes from the SDK. */
+  const runRA = async (text: string): Promise<ChatMessage> => {
+    const startedAt = performance.now();
+    let firstTokenAt: number | null = null;
+    let tokensPerSecond: number | undefined;
+
+    // Canonical cross-SDK streaming path: RunAnywhere.llm.generateStream()
+    // returns an AsyncIterable<GenerationEvent>. Manual iterator.next()
+    // loop — Hermes does not support `for await...of` over NitroModules
+    // async iterables.
+    const iterator = RunAnywhere.llm
+      .generateStream(text, {
+        systemPrompt: SYSTEM_PROMPT,
+        maxOutputTokens: MAX_TOKENS,
+        ...RA_GREEDY,
+        reasoning: { mode: 'off' },
+      })
+      [Symbol.asyncIterator]();
+    streamRef.current = iterator;
+
+    try {
+      for (;;) {
+        const step = await iterator.next();
+        if (step.done) break;
+        const event = step.value;
+        if (event.type === 'token') {
+          if (firstTokenAt === null) firstTokenAt = performance.now();
+          if (event.kind === 'text') {
+            responseRef.current += event.text;
+            setCurrentResponse(responseRef.current);
+          }
+        } else if (event.type === 'completed') {
+          tokensPerSecond = event.result.tokensPerSecond;
+          if (event.result.text) responseRef.current = event.result.text;
+        } else if (event.type === 'cancelled') {
+          // Terminal, like completed/failed. Native can cancel on its own
+          // (not only via handleStop), so mark it here or the bubble renders
+          // a truncated reply as if it finished normally.
+          wasCancelledRef.current = true;
+          if (!responseRef.current && typeof event.partial === 'string') {
+            responseRef.current = event.partial;
+          }
+          break;
+        } else if (event.type === 'failed') {
+          throw event.error;
+        }
+      }
+    } finally {
+      streamRef.current = null;
+    }
+
+    return {
+      text: responseRef.current,
+      isUser: false,
+      timestamp: new Date(),
+      backend: 'RunAnywhere',
+      tokensPerSecond,
+      ttftMs: (firstTokenAt ?? performance.now()) - startedAt,
+      wasCancelled: wasCancelledRef.current,
+    };
+  };
+
+  /**
+   * Stream one NobodyWho reply. History is reset first so it answers the same
+   * single prompt RunAnywhere did. tok/s is decode-only, from first token on.
+   */
+  const runNW = async (chat: NWChat, text: string): Promise<ChatMessage> => {
+    await chat.resetHistory();
+    const startedAt = performance.now();
+    let firstTokenAt: number | null = null;
+    let generated = 0;
+
+    // Manual iteration, like above: `nextToken` resolves undefined when done.
+    const stream = chat.ask(text);
+    for (;;) {
+      const token = await stream.nextToken();
+      if (token === undefined) break;
+      if (firstTokenAt === null) firstTokenAt = performance.now();
+      generated++;
+      responseRef.current += token;
+      setCurrentResponse(responseRef.current);
+      // NobodyWho has no per-ask token cap; stop at the same budget.
+      if (generated === MAX_TOKENS) chat.stopGeneration();
+    }
+    const finishedAt = performance.now();
+    const decodeSeconds = firstTokenAt === null ? 0 : (finishedAt - firstTokenAt) / 1000;
+
+    return {
+      text: responseRef.current,
+      isUser: false,
+      timestamp: new Date(),
+      backend: 'NobodyWho',
+      tokensPerSecond: decodeSeconds > 0 ? (generated - 1) / decodeSeconds : 0,
+      ttftMs: (firstTokenAt ?? finishedAt) - startedAt,
+      wasCancelled: wasCancelledRef.current,
+    };
+  };
 
   const handleSend = async () => {
     const text = inputText.trim();
@@ -50,74 +196,37 @@ export const ChatScreen: React.FC = () => {
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
     setIsGenerating(true);
+    wasCancelledRef.current = false;
+
+    // RunAnywhere first, then NobodyWho, each in its own bubble.
+    const steps: [Backend, () => Promise<ChatMessage>][] = [
+      ['RunAnywhere', () => runRA(text)],
+      ['NobodyWho', () => runNW(nwChatRef.current!, text)],
+    ];
+    for (const [backend, run] of steps) {
+      // Stop skips the engine that has not started yet.
+      if (wasCancelledRef.current) break;
+      setStreamingBackend(backend);
+      setCurrentResponse('');
+      responseRef.current = '';
+      try {
+        const reply = await run();
+        setMessages(prev => [...prev, reply]);
+      } catch (error) {
+        const errorMessage: ChatMessage = {
+          text: `${backend} error: ${error}`,
+          isUser: false,
+          timestamp: new Date(),
+          isError: true,
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    }
+
     setCurrentResponse('');
     responseRef.current = '';
     wasCancelledRef.current = false;
-
-    try {
-      // Canonical cross-SDK streaming path: RunAnywhere.llm.generateStream()
-      // returns an AsyncIterable<GenerationEvent>. Manual iterator.next()
-      // loop — Hermes does not support `for await...of` over NitroModules
-      // async iterables.
-      const iterator = RunAnywhere.llm
-        .generateStream(text, { maxOutputTokens: 256, temperature: 0.8 })
-        [Symbol.asyncIterator]();
-      streamRef.current = iterator;
-
-      let finalResult: GenerationResult | null = null;
-      try {
-        for (;;) {
-          const step = await iterator.next();
-          if (step.done) break;
-          const event = step.value;
-          if (event.type === 'token') {
-            responseRef.current += event.text;
-            setCurrentResponse(responseRef.current);
-          } else if (event.type === 'completed') {
-            finalResult = event.result;
-          } else if (event.type === 'cancelled') {
-            // Terminal, like completed/failed. Native can cancel on its own
-            // (not only via handleStop), so mark it here or the bubble renders
-            // a truncated reply as if it finished normally.
-            wasCancelledRef.current = true;
-            if (!responseRef.current && typeof event.partial === 'string') {
-              responseRef.current = event.partial;
-              setCurrentResponse(event.partial);
-            }
-            break;
-          } else if (event.type === 'failed') {
-            throw event.error;
-          }
-        }
-      } finally {
-        streamRef.current = null;
-      }
-
-      const finalText = finalResult?.text || responseRef.current;
-      const assistantMessage: ChatMessage = {
-        text: finalText,
-        isUser: false,
-        timestamp: new Date(),
-        tokensPerSecond: finalResult?.tokensPerSecond,
-        totalTokens: finalResult?.outputTokens,
-        wasCancelled: wasCancelledRef.current,
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-      setCurrentResponse('');
-      responseRef.current = '';
-      wasCancelledRef.current = false;
-      setIsGenerating(false);
-    } catch (error) {
-      const errorMessage: ChatMessage = {
-        text: `Error: ${error}`,
-        isUser: false,
-        timestamp: new Date(),
-        isError: true,
-      };
-      setMessages(prev => [...prev, errorMessage]);
-      setCurrentResponse('');
-      setIsGenerating(false);
-    }
+    setIsGenerating(false);
   };
 
   const handleStop = () => {
@@ -126,6 +235,7 @@ export const ChatScreen: React.FC = () => {
     // rejection from that teardown: it is fire-and-forget, and an unhandled
     // rejection here surfaces as a red-box warning in React Native.
     streamRef.current?.return?.(undefined)?.catch(() => {});
+    nwChatRef.current?.stopGeneration();
   };
 
   const renderSuggestionChip = (text: string) => (
@@ -141,18 +251,26 @@ export const ChatScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
-  if (!modelService.isLLMLoaded) {
+  if (modelService.loadedLLMId !== MODEL_ID || !nwModel) {
+    const raBusy = modelService.isLLMDownloading || modelService.isLLMLoading;
+
     return (
       <ModelLoaderWidget
         modelCredit={MODEL_CREDITS.llm}
         title="LLM Model Required"
-        subtitle="Download and load the language model to start chatting"
+        subtitle="Load the same model in RunAnywhere and NobodyWho to compare their answers"
         icon="chat"
         accentColor={AppColors.accentCyan}
-        isDownloading={modelService.isLLMDownloading}
-        isLoading={modelService.isLLMLoading}
-        progress={modelService.llmDownloadProgress}
-        onLoad={modelService.downloadAndLoadLLM}
+        isDownloading={raBusy ? modelService.isLLMDownloading : modelService.isNWDownloading}
+        isLoading={raBusy ? modelService.isLLMLoading : modelService.isNWLoading}
+        progress={raBusy ? modelService.llmDownloadProgress : modelService.nwDownloadProgress}
+        progressLabel={raBusy ? 'RunAnywhere' : 'NobodyWho'}
+        onLoad={async () => {
+          if (modelService.loadedLLMId !== MODEL_ID) {
+            await modelService.downloadAndLoadLanguageModel(MODEL_ID);
+          }
+          await modelService.downloadAndLoadNW(MODEL_ID);
+        }}
       />
     );
   }
@@ -170,7 +288,7 @@ export const ChatScreen: React.FC = () => {
           </View>
           <Text style={styles.emptyTitle}>Start a Conversation</Text>
           <Text style={styles.emptySubtitle}>
-            Ask anything! The AI runs entirely on your device.
+            Ask anything! RunAnywhere answers first, then NobodyWho, both on your device.
           </Text>
           <View style={styles.suggestionsContainer}>
             {renderSuggestionChip('Tell me a joke')}
@@ -181,7 +299,12 @@ export const ChatScreen: React.FC = () => {
       ) : (
         <FlatList
           ref={flatListRef}
-          data={[...messages, ...(isGenerating ? [{ text: currentResponse || '...', isUser: false, timestamp: new Date() }] : [])]}
+          data={[
+            ...messages,
+            ...(isGenerating
+              ? [{ text: currentResponse || `${streamingBackend}…`, isUser: false, timestamp: new Date() }]
+              : []),
+          ]}
           renderItem={({ item, index }) => (
             <ChatMessageBubble
               message={item as ChatMessage}

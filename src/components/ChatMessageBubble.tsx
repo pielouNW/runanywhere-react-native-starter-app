@@ -8,6 +8,8 @@ export interface ChatMessage {
   timestamp: Date;
   tokensPerSecond?: number;
   totalTokens?: number;
+  ttftMs?: number;
+  backend?: string;
   isError?: boolean;
   wasCancelled?: boolean;
 }
@@ -21,7 +23,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   message,
   isStreaming = false,
 }) => {
-  const { text, isUser, tokensPerSecond, totalTokens, isError, wasCancelled } = message;
+  const { text, isUser, tokensPerSecond, totalTokens, ttftMs, backend, isError, wasCancelled } = message;
 
   return (
     <View
@@ -47,7 +49,15 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
           {text}
         </Text>
 
-        {!isUser && !isStreaming && (tokensPerSecond || totalTokens) && (
+        {!isUser && !isStreaming && backend !== undefined && (
+          <View style={styles.metricsContainer}>
+            <Text style={styles.metrics}>
+              {backend}: {(tokensPerSecond ?? 0).toFixed(1)} tok/s · TTFT {Math.round(ttftMs ?? 0)} ms
+            </Text>
+          </View>
+        )}
+
+        {!isUser && !isStreaming && backend === undefined && (tokensPerSecond || totalTokens) && (
           <View style={styles.metricsContainer}>
             {tokensPerSecond && (
               <Text style={styles.metrics}>
