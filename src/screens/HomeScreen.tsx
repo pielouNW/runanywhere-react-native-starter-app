@@ -86,13 +86,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 gradientColors={[AppColors.accentCyan, AppColors.accentViolet]}
                 onPress={() => navigation.navigate('MultiTurnTTFT')}
               />
-              <FeatureCard
-                title="Structured"
-                subtitle="Structured Output"
-                icon="structured"
-                gradientColors={[AppColors.accentCyan, AppColors.accentViolet]}
-                onPress={() => navigation.navigate('StructuredOutput')}
-              />
             </View>
             <View style={styles.row}>
               <FeatureCard

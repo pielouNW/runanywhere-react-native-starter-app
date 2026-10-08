@@ -12,7 +12,6 @@ import {
   HomeScreen,
   ChatScreen,
   VisionScreen,
-  StructuredOutputScreen,
   ToolCallingScreen,
   SpeechToTextScreen,
   TextToSpeechScreen,
@@ -127,11 +126,6 @@ const App: React.FC = () => {
               name="MultiTurnTTFT"
               component={MultiTurnTTFTScreen}
               options={{ title: 'MultiTurn TTFT · Qwen3' }}
-            />
-            <Stack.Screen
-              name="StructuredOutput"
-              component={StructuredOutputScreen}
-              options={{ title: 'Structured Output' }}
             />
             <Stack.Screen
               name="ToolCalling"
